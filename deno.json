@@ -1,0 +1,16 @@
+{
+    "imports": {
+	"@types/chrome": "npm:@types/chrome@^0.0.270"
+    },
+    "compilerOptions": {
+	"lib": ["dom", "dom.iterable", "esnext"],	
+	"types": ["npm:@types/chrome"],
+	"strict": true,
+	"noImplicitOverride": true,
+	"noFallthroughCasesInSwitch": true,
+	"noUncheckedIndexedAccess": true,
+	"exactOptionalPropertyTypes": true,
+	"noImplicitReturns": true,
+	"verbatimModuleSyntax": true
+    }
+}
