@@ -498,6 +498,8 @@ const COMMAND_ROUTES = {
   "profile.person.read": personProfileRoute,
   "checkLinkedinProfile": profileRoute,
   "accountAbout.read": accountProfileRoute,
+  "accountProfile.read": accountProfileRoute,
+  "accountProfile.website": accountProfileRoute,
   "accountIq.read": accountProfileRoute,
 } as const;
 
@@ -658,6 +660,8 @@ async function runBackgroundJob(
 ): Promise<unknown> {
   switch (command) {
     case "accountAbout.read":
+    case "accountProfile.read":
+    case "accountProfile.website":
     case "accountIq.read": {
       const accountId = String((args as any)?.accountId ?? "");
       if (!/^\d+$/.test(accountId)) {
@@ -879,7 +883,11 @@ async function handleReadPersonProfile(memberId: string) {
 
 async function handleReadSalesNavigatorAccount(
   accountId: string,
-  command: "accountAbout.read" | "accountIq.read",
+  command:
+    | "accountAbout.read"
+    | "accountProfile.read"
+    | "accountProfile.website"
+    | "accountIq.read",
 ) {
   const url = `https://www.linkedin.com/sales/company/${accountId}`;
   const winId = await ensureAgentWindow();

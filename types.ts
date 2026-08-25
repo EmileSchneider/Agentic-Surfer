@@ -1,4 +1,5 @@
 import type { LeadResult } from "./linkedin/results.ts";
+import type { AccountProfileSnapshot } from "./lsn-profile/account-profile.ts";
 import type { AccountIqSnapshot } from "./lsn-profile/account-iq.ts";
 
 export type Brand<T, B extends string> = T & { readonly __brand: B };
@@ -141,9 +142,21 @@ export type AccountAboutCommand = {
   args: { accountId: string };
 };
 
+export type AccountWebsiteCommand = {
+  command: "accountProfile.website";
+  args: { accountId: string };
+};
+
+export type AccountProfileCommand = {
+  command: "accountProfile.read";
+  args: { accountId: string };
+};
+
 export type ExtensionCommand =
   | AgentCommand
   | AccountAboutCommand
+  | AccountWebsiteCommand
+  | AccountProfileCommand
   | AccountIqCommand;
 export type CommandName = ExtensionCommand["command"];
  
@@ -162,6 +175,8 @@ export interface CommandResultMap {
   nextPage: SearchState;
   checkLinkedinProfile: ProfileInfo;
   "accountAbout.read": string | null;
+  "accountProfile.website": string | null;
+  "accountProfile.read": AccountProfileSnapshot;
   "accountIq.read": AccountIqSnapshot;
 }
  

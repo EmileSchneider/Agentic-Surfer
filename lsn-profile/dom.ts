@@ -62,6 +62,28 @@ function accountIqRoot(): HTMLElement | null {
   return document.querySelector<HTMLElement>(ACCOUNT_IQ_ROOT_SELECTOR);
 }
 
+function accountProfileRoot(): HTMLElement | null {
+  return document
+    .querySelector('[data-anonymize="company-name"]')
+    ?.closest<HTMLElement>("header") ?? null;
+}
+
+export async function prepareAccountProfileRoot(
+  timeoutMs = 15_000,
+): Promise<HTMLElement> {
+  await waitFor(
+    () => accountProfileRoot() !== null,
+    timeoutMs,
+    "account profile header",
+  );
+
+  const root = accountProfileRoot();
+  if (!root) {
+    throw new ToolError("NOT_FOUND", "Account profile header not found");
+  }
+  return root;
+}
+
 export async function prepareAccountAboutRoot(
   timeoutMs = 15_000,
 ): Promise<HTMLElement> {
