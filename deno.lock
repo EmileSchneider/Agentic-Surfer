@@ -1,0 +1,34 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@types/chrome@*": "0.0.270",
+    "npm:@types/chrome@^0.0.270": "0.0.270"
+  },
+  "npm": {
+    "@types/chrome@0.0.270": {
+      "integrity": "sha512-ADvkowV7YnJfycZZxL2brluZ6STGW+9oKG37B422UePf2PCXuFA/XdERI0T18wtuWPx0tmFeZqq6MOXVk1IC+Q==",
+      "dependencies": [
+        "@types/filesystem",
+        "@types/har-format"
+      ]
+    },
+    "@types/filesystem@0.0.36": {
+      "integrity": "sha512-vPDXOZuannb9FZdxgHnqSwAG/jvdGM8Wq+6N4D/d80z+D4HWH+bItqsZaVRQykAn6WEVeEkLm2oQigyHtgb0RA==",
+      "dependencies": [
+        "@types/filewriter"
+      ]
+    },
+    "@types/filewriter@0.0.33": {
+      "integrity": "sha512-xFU8ZXTw4gd358lb2jw25nxY9QAgqn2+bKKjKOYfNCzN4DKCFetK7sPtrlpg66Ywe3vWY9FNxprZawAh9wfJ3g=="
+    },
+    "@types/har-format@1.2.16": {
+      "integrity": "sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:@types/chrome@*",
+      "npm:@types/chrome@^0.0.270"
+    ]
+  }
+}

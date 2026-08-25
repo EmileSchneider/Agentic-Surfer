@@ -2,6 +2,10 @@
     "imports": {
 	"@types/chrome": "npm:@types/chrome@^0.0.270"
     },
+    "tasks": {
+	"check": "deno check .",
+	"build": "deno task check && deno run -A build.ts"
+    },
     "compilerOptions": {
 	"lib": ["dom", "dom.iterable", "esnext"],	
 	"types": ["npm:@types/chrome"],
