@@ -166,12 +166,24 @@ export interface ProfilePersonConnectResult {
   finalUrl: string;
 }
 
+export type WithdrawOldInvitationsCommand = {
+  command: "invitations.withdrawOld";
+  args: Record<never, never>;
+};
+
+export interface WithdrawOldInvitationsResult {
+  scanned: number;
+  eligible: number;
+  withdrawn: number;
+}
+
 export type ExtensionCommand =
   | AgentCommand
   | AccountAboutCommand
   | AccountWebsiteCommand
   | AccountProfileCommand
   | ProfilePersonConnectCommand
+  | WithdrawOldInvitationsCommand
   | AccountIqCommand;
 export type CommandName = ExtensionCommand["command"];
  
@@ -190,6 +202,7 @@ export interface CommandResultMap {
   nextPage: SearchState;
   checkLinkedinProfile: ProfileInfo;
   "profile.person.connect": ProfilePersonConnectResult;
+  "invitations.withdrawOld": WithdrawOldInvitationsResult;
   "accountAbout.read": string | null;
   "accountProfile.website": string | null;
   "accountProfile.read": AccountProfileSnapshot;

@@ -422,6 +422,17 @@ const accountSearchRoute = {
   invokeType: "INVOKE_ACCOUNT_SEARCH_TOOL",
 } satisfies ContentRoute;
 
+const invitationsRoute = {
+  kind: "content",
+  tabKey: "invitationManagerTabId",
+  homeUrl: "https://www.linkedin.com/mynetwork/invitation-manager/sent/",
+  matchUrl: "https://www.linkedin.com/mynetwork/invitation-manager/sent*",
+  urlPrefix: "https://www.linkedin.com/mynetwork/invitation-manager/sent",
+  scriptFile: "invitations-content.js",
+  pingType: "PING_INVITATIONS",
+  invokeType: "INVOKE_INVITATIONS_TOOL",
+} satisfies ContentRoute;
+
 const profileRoute = {
   kind: "backgroundJob",
   job: "companyProfile",
@@ -492,6 +503,8 @@ const COMMAND_ROUTES = {
   "accountSearch.setKeywords": accountSearchRoute,
   "accountSearch.clearKeywords": accountSearchRoute,
   "accountSearch.getState": accountSearchRoute,
+
+  "invitations.withdrawOld": invitationsRoute,
 
   "profile.readCompany": profileRoute,
   "profile.person.open": personProfileRoute,
