@@ -161,7 +161,7 @@ export type ProfilePersonConnectCommand = {
 
 export interface ProfilePersonConnectResult {
   memberId: string;
-  clicked: true;
+  sent: true;
   tabId: number;
   finalUrl: string;
 }

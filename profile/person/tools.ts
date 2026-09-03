@@ -477,7 +477,12 @@ export async function runProfilePersonTool(msg: {
           "profile.person.connect requires memberId",
         );
       }
-      return clickConnectButton(memberId);
+      const note = msg.args?.note;
+      if (note !== undefined &&
+        (typeof note !== "string" || note.trim().length === 0)) {
+        throw new ToolError("BAD_ARGS", "note must not be empty");
+      }
+      return clickConnectButton(memberId, note);
     }
     case "profile.person.read": {
       const memberId = String(msg.args?.memberId ?? "");
