@@ -93,6 +93,8 @@ export interface ProfileInfo {
 
 export type ToolErrorCode =
   | "NOT_FOUND"
+  | "ALREADY_PENDING"
+  | "ALREADY_CONNECTED"
   | "TIMEOUT"
   | "UNSUPPORTED_MODE"
   | "BAD_ARGS"

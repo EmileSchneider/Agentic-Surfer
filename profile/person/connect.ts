@@ -21,10 +21,30 @@ function findMoreButton(): HTMLButtonElement | null {
     .find((button) => isVisible(button) && controlText(button) === "More") ?? null;
 }
 
-function findMenuConnectButton(): HTMLElement | null {
-  return Array.from(
+type MenuConnectionState =
+  | { kind: "pending" }
+  | { kind: "connected" }
+  | { kind: "connect"; button: HTMLElement };
+
+function readMenuConnectionState(): MenuConnectionState | null {
+  const items = Array.from(
     document.querySelectorAll<HTMLElement>('[role="menu"] [role="menuitem"]'),
-  ).find((item) => isVisible(item) && controlText(item) === "Connect") ?? null;
+  ).filter(isVisible);
+
+  if (items.some((item) =>
+    item.matches('[componentkey$="_pending"]') ||
+    item.querySelector('[aria-label^="Pending, click to withdraw invitation"]')
+  )) return { kind: "pending" };
+
+  if (items.some((item) =>
+    controlText(item) === "Remove connection" ||
+    item.querySelector('[aria-label="Remove connection"]')
+  )) return { kind: "connected" };
+
+  const button = items.find((item) =>
+    item.matches('[componentkey$="_connect"]') || controlText(item) === "Connect"
+  );
+  return button ? { kind: "connect", button } : null;
 }
 
 export async function clickConnectButton(memberId: string) {
@@ -39,15 +59,19 @@ export async function clickConnectButton(memberId: string) {
   realClick(moreButton);
 
   try {
-    await waitFor(() => findMenuConnectButton() !== null, 3000, "Connect menu item");
+    await waitFor(() => readMenuConnectionState() !== null, 3000, "connection state");
   } catch {
-    throw new ToolError("NOT_FOUND", "Connect menu item not found");
+    throw new ToolError("NOT_FOUND", "Connection state not found");
   }
 
-  const menuConnectButton = findMenuConnectButton();
-  if (!menuConnectButton) {
-    throw new ToolError("NOT_FOUND", "Connect menu item not found");
+  const state = readMenuConnectionState();
+  if (!state) throw new ToolError("NOT_FOUND", "Connection state not found");
+  if (state.kind === "pending") {
+    throw new ToolError("ALREADY_PENDING", "Connection request is pending");
   }
-  realClick(menuConnectButton);
+  if (state.kind === "connected") {
+    throw new ToolError("ALREADY_CONNECTED", "Member is already connected");
+  }
+  realClick(state.button);
   return { memberId, clicked: true as const };
 }
