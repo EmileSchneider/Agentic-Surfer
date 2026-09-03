@@ -496,6 +496,7 @@ const COMMAND_ROUTES = {
   "profile.readCompany": profileRoute,
   "profile.person.open": personProfileRoute,
   "profile.person.read": personProfileRoute,
+  "profile.person.connect": personProfileRoute,
   "checkLinkedinProfile": profileRoute,
   "accountAbout.read": accountProfileRoute,
   "accountProfile.read": accountProfileRoute,
@@ -695,7 +696,25 @@ async function runBackgroundJob(
         );
       }
 
-      return enqueueProfile(() => handleReadPersonProfile(memberId));
+      return enqueueProfile(() =>
+        handlePersonProfileCommand(memberId, command, args)
+      );
+    }
+    case "profile.person.connect": {
+      const memberId = (args as any)?.memberId;
+      const note = (args as any)?.note;
+      if (typeof memberId !== "string" || !/^[A-Za-z0-9_-]+$/.test(memberId)) {
+        throw new ToolError("BAD_ARGS", `Bad memberId: ${JSON.stringify(args)}`);
+      }
+      if (note != null && typeof note !== "string") {
+        throw new ToolError("BAD_ARGS", "note must be a string");
+      }
+      if (typeof note === "string" && note.length > 300) {
+        throw new ToolError("BAD_ARGS", "note must be 300 characters or less");
+      }
+      return enqueueProfile(() =>
+        handlePersonProfileCommand(memberId, command, args)
+      );
     }
     case "checkLinkedinProfile":
     case "profile.readCompany": {
@@ -839,9 +858,14 @@ async function handleOpenPersonProfile(memberId: string) {
   };
 }
 
-async function handleReadPersonProfile(memberId: string) {
+async function handlePersonProfileCommand(
+  memberId: string,
+  command: "profile.person.read" | "profile.person.connect",
+  args: unknown,
+) {
   const opened = await handleOpenPersonProfile(memberId);
   const tabId = opened.tabId;
+  let keepOpen = false;
 
   try {
     await waitForTabSettled(tabId);
@@ -855,8 +879,8 @@ async function handleReadPersonProfile(memberId: string) {
     try {
       result = await sendContentCommand(
         tabId,
-        "profile.person.read",
-        { memberId },
+        command,
+        args,
         "INVOKE_PROFILE_PERSON_TOOL",
       );
     } catch (err) {
@@ -869,15 +893,19 @@ async function handleReadPersonProfile(memberId: string) {
       );
       result = await sendContentCommand(
         tabId,
-        "profile.person.read",
-        { memberId },
+        command,
+        args,
         "INVOKE_PROFILE_PERSON_TOOL",
       );
     }
     const finalUrl = (await chrome.tabs.get(tabId)).url ?? opened.finalUrl;
+    if (command === "profile.person.connect") {
+      keepOpen = true;
+      return { ...(result as Record<string, unknown>), tabId, finalUrl };
+    }
     return { ...(result as Record<string, unknown>), finalUrl };
   } finally {
-    await chrome.tabs.remove(tabId).catch(() => {});
+    if (!keepOpen) await chrome.tabs.remove(tabId).catch(() => {});
   }
 }
 

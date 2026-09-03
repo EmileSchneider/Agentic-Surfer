@@ -1,5 +1,6 @@
 import { isVisible, realClick, sleep, waitFor } from "../../linkedin/dom.ts";
 import { ToolError } from "../../types.ts";
+import { clickConnectButton } from "./connect.ts";
 
 const SECTION_LABELS = [
   "About",
@@ -373,13 +374,45 @@ function splitDotParts(value: string | null | undefined): string[] {
     .filter((part): part is string => part != null);
 }
 
-function readExperienceFromItem(item: HTMLElement): PersonExperience | null {
-  const companyAnchor = item.querySelector<HTMLAnchorElement>(
-    'a[href*="/company/"]',
-  );
-  const anchorParagraphs = companyAnchor
-    ? Array.from(companyAnchor.querySelectorAll<HTMLParagraphElement>("p"))
+function experienceParagraphs(root: HTMLElement): HTMLParagraphElement[] {
+  const anchor = Array.from(
+    root.querySelectorAll<HTMLAnchorElement>('a[href*="/company/"]'),
+  ).find((candidate) => candidate.querySelector("p"));
+  return anchor
+    ? Array.from(anchor.querySelectorAll<HTMLParagraphElement>("p"))
     : [];
+}
+
+function readExperienceFromItem(item: HTMLElement): PersonExperience[] {
+  const anchorParagraphs = experienceParagraphs(item);
+  const roleItems = Array.from(
+    item.querySelectorAll<HTMLElement>("ul > li"),
+  ).filter((role) => experienceParagraphs(role).length > 0);
+
+  if (roleItems.length > 0) {
+    const company = elementText(anchorParagraphs[0] ?? null);
+    const location = elementText(anchorParagraphs[2] ?? null);
+
+    return roleItems.flatMap((role) => {
+      const paragraphs = experienceParagraphs(role);
+      const title = elementText(paragraphs[0] ?? null);
+      const [dateRange, duration] = splitDotParts(
+        elementText(paragraphs[1] ?? null),
+      );
+      if (!title) return [];
+      return [{
+        title,
+        company,
+        dateRange: dateRange ?? null,
+        duration: duration ?? null,
+        location,
+        description: elementText(
+          role.querySelector('[data-testid="expandable-text-box"]'),
+        ),
+      }];
+    });
+  }
+
   const [titleEl, companyEl, dateEl, locationEl] = anchorParagraphs;
 
   const title = elementText(titleEl ?? null);
@@ -393,16 +426,16 @@ function readExperienceFromItem(item: HTMLElement): PersonExperience | null {
   const company = companyLine;
   const [dateRange, duration] = splitDotParts(dateLine);
 
-  if (!title && !company && !dateRange && !description) return null;
+  if (!title && !company && !dateRange && !description) return [];
 
-  return {
+  return [{
     title,
     company,
     dateRange: dateRange ?? null,
     duration: duration ?? null,
     location: locationLine,
     description,
-  };
+  }];
 }
 
 async function readExperience(): Promise<PersonExperience[]> {
@@ -412,8 +445,7 @@ async function readExperience(): Promise<PersonExperience[]> {
   await expandSection(section);
 
   return experienceItemRoots(section)
-    .map(readExperienceFromItem)
-    .filter((item): item is PersonExperience => item !== null);
+    .flatMap(readExperienceFromItem);
 }
 
 async function readPersonProfile(memberId: string): Promise<PersonProfile> {
@@ -437,6 +469,16 @@ export async function runProfilePersonTool(msg: {
   args: any;
 }): Promise<unknown> {
   switch (msg.command) {
+    case "profile.person.connect": {
+      const memberId = String(msg.args?.memberId ?? "");
+      if (!memberId) {
+        throw new ToolError(
+          "BAD_ARGS",
+          "profile.person.connect requires memberId",
+        );
+      }
+      return clickConnectButton(memberId);
+    }
     case "profile.person.read": {
       const memberId = String(msg.args?.memberId ?? "");
       if (!memberId) {

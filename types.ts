@@ -152,11 +152,24 @@ export type AccountProfileCommand = {
   args: { accountId: string };
 };
 
+export type ProfilePersonConnectCommand = {
+  command: "profile.person.connect";
+  args: { memberId: string; note?: string };
+};
+
+export interface ProfilePersonConnectResult {
+  memberId: string;
+  clicked: true;
+  tabId: number;
+  finalUrl: string;
+}
+
 export type ExtensionCommand =
   | AgentCommand
   | AccountAboutCommand
   | AccountWebsiteCommand
   | AccountProfileCommand
+  | ProfilePersonConnectCommand
   | AccountIqCommand;
 export type CommandName = ExtensionCommand["command"];
  
@@ -174,6 +187,7 @@ export interface CommandResultMap {
   clearKeywords: SearchState;
   nextPage: SearchState;
   checkLinkedinProfile: ProfileInfo;
+  "profile.person.connect": ProfilePersonConnectResult;
   "accountAbout.read": string | null;
   "accountProfile.website": string | null;
   "accountProfile.read": AccountProfileSnapshot;
