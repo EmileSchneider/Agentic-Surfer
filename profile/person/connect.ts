@@ -1,9 +1,24 @@
-import { isVisible, realClick, waitFor } from "../../linkedin/dom.ts";
+import { isVisible, realClick, sleep, waitFor } from "../../linkedin/dom.ts";
 import { ToolError } from "../../types.ts";
 
 const CONNECT_SELECTOR =
   'a[href^="/preload/custom-invite/"][componentkey^="ConnectButtonstate:invitation:"]';
-const INVITE_DIALOG_SELECTOR = '[data-test-modal][role="dialog"].send-invite';
+const INTEROP_HOST_SELECTOR = '#interop-outlet[data-testid="interop-shadowdom"]';
+const INVITE_DIALOG_SELECTOR =
+  '[data-test-modal][role="dialog"][aria-labelledby="send-invite-modal"]';
+const LOG = "[profile.person.connect]";
+let lastModalEvidence = "";
+
+function elementState(element: HTMLElement | null) {
+  return element ? {
+    tag: element.tagName,
+    ariaLabel: element.getAttribute("aria-label"),
+    text: element.innerText.trim(),
+    visible: isVisible(element),
+    disabled: element instanceof HTMLButtonElement && element.disabled,
+    connected: element.isConnected,
+  } : null;
+}
 
 export function findConnectButton(): HTMLAnchorElement | null {
   return Array.from(
@@ -23,20 +38,46 @@ function findMoreButton(): HTMLButtonElement | null {
 }
 
 function findModalButton(ariaLabel: string): HTMLButtonElement | null {
-  const button = document.querySelector<HTMLButtonElement>(
-    `${INVITE_DIALOG_SELECTOR} button[aria-label="${ariaLabel}"]`,
-  );
-  return button && isVisible(button) && !button.disabled ? button : null;
+  const modalRoot = document.querySelector<HTMLElement>(INTEROP_HOST_SELECTOR)
+    ?.shadowRoot ?? null;
+  const button = modalRoot?.querySelector<HTMLButtonElement>(
+    `button[aria-label="${ariaLabel}"]`,
+  ) ?? null;
+  const dialog = button?.closest<HTMLElement>('[role="dialog"]') ??
+    modalRoot?.querySelector<HTMLElement>(INVITE_DIALOG_SELECTOR) ?? null;
+  const candidates = Array.from(
+    modalRoot?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+  )
+    .filter(isVisible)
+    .map((item) => elementState(item))
+    .filter((item) => /send|note|invite/i.test(
+      `${item?.ariaLabel ?? ""} ${item?.text ?? ""}`,
+    ));
+  const evidence = {
+    ariaLabel,
+    dialog: elementState(dialog),
+    button: elementState(button),
+    candidates,
+  };
+  const serialized = JSON.stringify(evidence);
+  if (serialized !== lastModalEvidence) {
+    console.log(LOG, "modal evidence", serialized);
+    lastModalEvidence = serialized;
+  }
+  return button && !button.disabled ? button : null;
 }
 
 async function waitForModalButton(ariaLabel: string): Promise<HTMLButtonElement> {
+  console.log(LOG, "wait for modal button", { ariaLabel });
   try {
     await waitFor(() => findModalButton(ariaLabel) !== null, 3000, ariaLabel);
-  } catch {
+  } catch (error) {
+    console.error(LOG, "modal button wait failed", error);
     throw new ToolError("NOT_FOUND", `${ariaLabel} button not found`);
   }
   const button = findModalButton(ariaLabel);
   if (!button) throw new ToolError("NOT_FOUND", `${ariaLabel} button not found`);
+  console.log(LOG, "modal button ready", elementState(button));
   return button;
 }
 
@@ -81,12 +122,18 @@ function readMenuConnectionState(): MenuConnectionState | null {
 }
 
 export async function clickConnectButton(memberId: string, note?: string) {
+  console.log(LOG, "start", { memberId, hasNote: note !== undefined });
   const button = findConnectButton();
+  console.log(LOG, "direct connect lookup", elementState(button));
   if (button) {
+    console.log(LOG, "click direct connect", elementState(button));
     realClick(button);
+    console.log(LOG, "clicked direct connect");
   } else {
     const moreButton = findMoreButton();
+    console.log(LOG, "more lookup", elementState(moreButton));
     if (!moreButton) throw new ToolError("NOT_FOUND", "More button not found");
+    console.log(LOG, "click more");
     realClick(moreButton);
 
     try {
@@ -96,6 +143,7 @@ export async function clickConnectButton(memberId: string, note?: string) {
     }
 
     const state = readMenuConnectionState();
+    console.log(LOG, "menu state", state?.kind ?? null);
     if (!state) throw new ToolError("NOT_FOUND", "Connection state not found");
     if (state.kind === "pending") {
       throw new ToolError("ALREADY_PENDING", "Connection request is pending");
@@ -103,11 +151,23 @@ export async function clickConnectButton(memberId: string, note?: string) {
     if (state.kind === "connected") {
       throw new ToolError("ALREADY_CONNECTED", "Member is already connected");
     }
+    console.log(LOG, "click menu connect", elementState(state.button));
     realClick(state.button);
   }
 
   if (note === undefined) {
-    realClick(await waitForModalButton("Send without a note"));
+    await waitForModalButton("Send without a note");
+    await sleep(500);
+    const sendButton = findModalButton("Send without a note");
+    if (!sendButton) {
+      throw new ToolError("NOT_FOUND", "Send without a note button disappeared");
+    }
+    console.log(LOG, "click send without note", elementState(sendButton));
+    sendButton.click();
+    console.log(LOG, "clicked send without note", {
+      button: elementState(sendButton),
+      dialog: elementState(document.querySelector(INVITE_DIALOG_SELECTOR)),
+    });
     return { memberId, sent: true as const };
   }
 

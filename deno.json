@@ -1,13 +1,16 @@
 {
     "imports": {
-	"@types/chrome": "npm:@types/chrome@^0.0.270"
+        "@modelcontextprotocol/server": "npm:@modelcontextprotocol/server@^2.0.0",
+	"@types/chrome": "npm:@types/chrome@^0.0.270",
+        "surrealdb": "npm:surrealdb@^2.0.8",
+        "zod": "npm:zod@^4.6.5"
     },
     "tasks": {
 	"check": "deno check .",
 	"build": "deno task check && deno run -A build.ts"
     },
     "compilerOptions": {
-	"lib": ["dom", "dom.iterable", "esnext"],	
+	"lib": ["dom", "dom.iterable", "esnext", "deno.ns"],	
 	"types": ["npm:@types/chrome"],
 	"strict": true,
 	"noImplicitOverride": true,

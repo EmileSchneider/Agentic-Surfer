@@ -1,4 +1,5 @@
 # CODEX.md
+ANSWER ALWAYS USING ASD-STE100 ENGLISH!!
 
 This project is a django webapp that is going to help me with the outreach for my agency.
 It is only here to support me find, qualify and track touches with prospects. To do this 
@@ -19,7 +20,9 @@ features I am unsure I will need.
 ### Development Process
 
 You are not going to write code. IF you are going to write code keep your chances to the absolute minimum. 
-No more than 50 Lines of Code at once. 
+Discuss with me the minimal scope of a request. 
+
+NEVER WRITE TESTS YOUR TESTS SUCK
 
 The develompent process will be driven by our conversations. 
 
@@ -31,4 +34,4 @@ We are going to work in small, incremental steps.
 ## Extension
 the extension is written in typescript and lives in ~/Workspace/Prospectr/Extension
 
-ANSWER ALWAYS USING ASD-STE100 ENGLISH!
+ANSWER ALWAYS USING ASD-STE100 ENGLISH!!

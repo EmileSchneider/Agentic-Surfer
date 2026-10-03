@@ -20,12 +20,25 @@ if (!(window as unknown as Record<string, boolean>)[FLAG]) {
     }
     if (msg.type !== "INVOKE_PROFILE_PERSON_TOOL") return;
 
+    console.log("[profile.person.content] command received", {
+      command: msg.command,
+      args: msg.args,
+    });
+
     enqueue(() =>
       runProfilePersonTool(msg as { command: string; args: any })
     )
-      .then((result) => sendResponse({ ok: true, result }))
+      .then((result) => {
+        console.log("[profile.person.content] command succeeded", result);
+        sendResponse({ ok: true, result });
+      })
       .catch((err) => {
         const e = toToolError(err);
+        console.error("[profile.person.content] command failed", {
+          originalError: err,
+          code: e.code,
+          message: e.message,
+        });
         sendResponse({ ok: false, error: { code: e.code, message: e.message } });
       });
 

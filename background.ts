@@ -603,11 +603,21 @@ async function sendContentCommand(
   args: unknown,
   type = "INVOKE_TOOL",
 ): Promise<unknown> {
+  if (command === "profile.person.connect") {
+    console.log("[profile.person.background] send to content", {
+      tabId,
+      type,
+      args,
+    });
+  }
   const response = await chrome.tabs.sendMessage(tabId, {
     type,
     command,
     args,
   });
+  if (command === "profile.person.connect") {
+    console.log("[profile.person.background] content reply", response);
+  }
 
   if (!response?.ok) {
     const e = response?.error;
@@ -878,7 +888,6 @@ async function handlePersonProfileCommand(
 ) {
   const opened = await handleOpenPersonProfile(memberId);
   const tabId = opened.tabId;
-  let keepOpen = false;
 
   try {
     await waitForTabSettled(tabId);
@@ -913,12 +922,11 @@ async function handlePersonProfileCommand(
     }
     const finalUrl = (await chrome.tabs.get(tabId)).url ?? opened.finalUrl;
     if (command === "profile.person.connect") {
-      keepOpen = true;
       return { ...(result as Record<string, unknown>), tabId, finalUrl };
     }
     return { ...(result as Record<string, unknown>), finalUrl };
   } finally {
-    if (!keepOpen) await chrome.tabs.remove(tabId).catch(() => {});
+    await chrome.tabs.remove(tabId).catch(() => {});
   }
 }
 
