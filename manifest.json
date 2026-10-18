@@ -3,7 +3,7 @@
     "name": "Oppenheimer Tooling",
     "version": "0.1.0",
     "permissions": ["tabs", "scripting", "alarms", "storage", "sidePanel"],
-    "host_permissions": ["https://www.linkedin.com/*"],
+    "host_permissions": ["https://*/*", "http://localhost:3000/*"],
     "background": { "service_worker": "background.js", "type": "module" },
     "description": "accessibility tooling.",
     "content_scripts": [
@@ -42,6 +42,11 @@
 	{
 	    "matches": ["https://www.linkedin.com/sales/company/*"],
 	    "js": ["lsn-profile-content.js"],
+	    "run_at": "document_idle"
+	},
+	{
+	    "matches": ["https://www.linkedin.com/sales/lead/*"],
+	    "js": ["lsn-lead-profile-content.js"],
 	    "run_at": "document_idle"
 	}
     ],

@@ -2,5 +2,29 @@
 <meta charset="utf-8">
 <body>
   <pre id="out">contacting service worker…</pre>
+  <section aria-labelledby="profile-heading">
+    <h2 id="profile-heading">Profile data</h2>
+    <button id="extract-profile-btn">Extract Profile</button>
+    <p id="profile-status" role="status">No profile data extracted.</p>
+    <dl>
+      <dt>Full name</dt>
+      <dd id="profile-name">—</dd>
+      <dt>Current role</dt>
+      <dd id="profile-role">—</dd>
+      <dt>Company</dt>
+      <dd id="profile-company">—</dd>
+      <dt>LinkedIn URL</dt>
+      <dd id="profile-linkedin-url">—</dd>
+    </dl>
+    <select id="company-selection">
+    </select>
+
+    <div id="duplicate-warning" role="alert"></div>
+    <label id="duplicate-override-label" hidden>
+      <input id="duplicate-override" type="checkbox">
+      Create another person despite these possible duplicates.
+    </label>
+    <p><button id="create-person-btn" disabled>Create person</button></p>
+  </section>
   <script type="module" src="sidepanel.js"></script>
 </body>

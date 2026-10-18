@@ -547,6 +547,8 @@ export function readLeadExperience(root: HTMLElement): LeadExperience[] {
     const nestedRoleItems = nestedRoleList
       ? Array.from(
         nestedRoleList.querySelectorAll<HTMLElement>(":scope > li"),
+      ).filter((item) =>
+        item.querySelector('[data-anonymize="job-title"]') !== null
       )
       : [];
     const roles = nestedRoleItems.length > 0
