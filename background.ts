@@ -20,6 +20,7 @@
 //      is what the DOM drivers need.
 
 import { toToolError } from "./tools.ts";
+import { jobPostingUrl } from "./job-posting/extractor.ts";
 import {
   type AgentCommand,
   type AuthMessage,
@@ -113,7 +114,7 @@ async function executeCommand(req: CommandRequest): Promise<CommandReply> {
 
   // Cache BEFORE sending: if the SW dies between executing and replying,
   // the server's resend hits the cache instead of re-executing.
-  await cacheReply(reply);
+  if (req.cacheReply !== false) await cacheReply(reply);
   return reply;
 }
 
@@ -191,8 +192,9 @@ async function handleMessage(ev: MessageEvent): Promise<void> {
   const req = msg as CommandRequest;
 
   // Replay of an already-completed command → answer from cache, never re-run.
-  const cache = await loadReplyCache();
-  const cached = cache.byId[req.id];
+  const cached = req.cacheReply === false
+    ? undefined
+    : (await loadReplyCache()).byId[req.id];
   if (cached) {
     console.log(`[ws] replay id=${req.id.slice(0, 8)} → cached reply`);
     socket?.send(JSON.stringify(cached));
@@ -510,6 +512,7 @@ const COMMAND_ROUTES = {
   "profile.person.open": personProfileRoute,
   "profile.person.read": personProfileRoute,
   "profile.person.connect": personProfileRoute,
+  "jobPosting.read": personProfileRoute,
   "checkLinkedinProfile": profileRoute,
   "accountAbout.read": accountProfileRoute,
   "accountProfile.read": accountProfileRoute,
@@ -683,6 +686,23 @@ async function runBackgroundJob(
   args: unknown,
 ): Promise<unknown> {
   switch (command) {
+    case "jobPosting.read": {
+      const url = (args as { url?: unknown })?.url;
+      if (typeof url !== "string") throw new ToolError("BAD_ARGS", "Job posting URL is required");
+      const jobUrl = jobPostingUrl(url);
+      return enqueueProfile(async () => {
+        const windowId = await ensureAgentWindow();
+        const tab = await chrome.tabs.create({ url: jobUrl, active: true, windowId });
+        if (tab.id == null) throw new ToolError("INTERNAL", "Could not open job posting tab");
+        try {
+          await waitForTabSettled(tab.id);
+          await ensureContentScript(tab.id, "job-posting-content.js", "PING_JOB_POSTING");
+          return await sendContentCommand(tab.id, command, args, "INVOKE_JOB_POSTING_TOOL");
+        } finally {
+          await chrome.tabs.remove(tab.id).catch(() => {});
+        }
+      });
+    }
     case "accountAbout.read":
     case "accountProfile.read":
     case "accountProfile.website":
@@ -726,7 +746,7 @@ async function runBackgroundJob(
     case "profile.person.connect": {
       const memberId = (args as any)?.memberId;
       const note = (args as any)?.note;
-      if (typeof memberId !== "string" || !/^[A-Za-z0-9_-]+$/.test(memberId)) {
+      if (typeof memberId !== "string" || !/^[\p{L}\p{M}\p{N}_-]+$/u.test(memberId)) {
         throw new ToolError("BAD_ARGS", `Bad memberId: ${JSON.stringify(args)}`);
       }
       if (note != null && typeof note !== "string") {
