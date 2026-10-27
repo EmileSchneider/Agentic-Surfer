@@ -32,7 +32,7 @@ import {
   type ToolErrorCode,
 } from "./types.ts";
 
-const WS_URL = "ws://localhost:8000/ws/agent";
+const WS_URL = "ws://localhost:8001/ws/agent";
 const AUTH_TOKEN = "REMOVED_LOCAL_TOKEN";
 const CLIENT_ID = "default";
 

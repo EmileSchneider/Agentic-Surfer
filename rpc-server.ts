@@ -217,7 +217,7 @@ function upgrade(req: globalThis.Request): Response {
 }
 
 Deno.serve(
-  { hostname: "localhost", port: 8000 },
+  { hostname: "localhost", port: 8001 },
   async (req) => {
     const { pathname } = new URL(req.url);
 
