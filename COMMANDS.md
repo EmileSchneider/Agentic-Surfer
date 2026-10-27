@@ -85,6 +85,7 @@ Argument rules:
 | --- | --- | --- |
 | `invitations.withdrawOld` | `{}` | `WithdrawOldInvitationsResult` |
 | `profile.readCompany` | `{ orgId: string } OR { urn: string }` | `ProfileInfo` |
+| `profile.company.read.urn` | `{ url: string }` | `{ urn: string }` |
 | `checkLinkedinProfile` | `{ orgId: string } OR { urn: string }` | `ProfileInfo` |
 | `profile.person.open` | `{ memberId: string }` | `PersonProfileOpenResult` |
 | `profile.person.read` | `{ memberId: string }` | `PersonProfile` |

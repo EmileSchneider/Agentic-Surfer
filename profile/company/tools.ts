@@ -60,6 +60,28 @@ export async function runProfileCompanyTool(msg: {
   args: any;
 }): Promise<unknown> {
   switch (msg.command) {
+    case "profile.company.read.urn": {
+      const selector = 'a[href*="currentCompany="]';
+      await waitFor(
+        () => document.querySelector(selector) !== null,
+        8000,
+        "company employee search link",
+      );
+      const link = document.querySelector<HTMLAnchorElement>(selector)!;
+      let ids: unknown;
+      try {
+        ids = JSON.parse(new URL(link.href).searchParams.get("currentCompany") ?? "null");
+      } catch {
+        throw new ToolError("INTERNAL", "Invalid company ID in employee search link");
+      }
+      if (
+        !Array.isArray(ids) || ids.length !== 1 ||
+        typeof ids[0] !== "string" || !/^\d+$/.test(ids[0])
+      ) {
+        throw new ToolError("INTERNAL", "Expected one numeric company ID in employee search link");
+      }
+      return { urn: `urn:li:organization:${ids[0]}` };
+    }
     case "profile.company.read":
       await waitForCompanyProfile();
       return readCompanyProfile();

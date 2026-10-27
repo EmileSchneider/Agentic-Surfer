@@ -509,6 +509,7 @@ const COMMAND_ROUTES = {
   "invitations.withdrawOld": invitationsRoute,
 
   "profile.readCompany": profileRoute,
+  "profile.company.read.urn": profileRoute,
   "profile.person.open": personProfileRoute,
   "profile.person.read": personProfileRoute,
   "profile.person.connect": personProfileRoute,
@@ -686,6 +687,35 @@ async function runBackgroundJob(
   args: unknown,
 ): Promise<unknown> {
   switch (command) {
+    case "profile.company.read.urn": {
+      const input = (args as { url?: unknown })?.url;
+      let url: URL;
+      try {
+        if (typeof input !== "string") throw new Error();
+        url = new URL(input);
+        if (
+          url.protocol !== "https:" ||
+          !["www.linkedin.com", "linkedin.com"].includes(url.hostname) ||
+          url.port || url.username || url.password ||
+          !/^\/company\/[^/]+\/?$/.test(url.pathname)
+        ) throw new Error();
+      } catch {
+        throw new ToolError("BAD_ARGS", "Expected a LinkedIn company profile URL");
+      }
+      const companyUrl = `https://www.linkedin.com${url.pathname}`;
+      return enqueueProfile(async () => {
+        const windowId = await ensureAgentWindow();
+        const tab = await chrome.tabs.create({ url: companyUrl, active: true, windowId });
+        if (tab.id == null) throw new ToolError("INTERNAL", "Could not open company profile tab");
+        try {
+          await waitForTabSettled(tab.id);
+          await ensureContentScript(tab.id, "profile-company-content.js", "PING_PROFILE_COMPANY");
+          return await sendContentCommand(tab.id, command, args, "INVOKE_PROFILE_COMPANY_TOOL");
+        } finally {
+          await chrome.tabs.remove(tab.id).catch(() => {});
+        }
+      });
+    }
     case "jobPosting.read": {
       const url = (args as { url?: unknown })?.url;
       if (typeof url !== "string") throw new ToolError("BAD_ARGS", "Job posting URL is required");

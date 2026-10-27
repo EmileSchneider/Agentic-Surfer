@@ -178,6 +178,7 @@ export interface WithdrawOldInvitationsResult {
 }
 
 export type ExtensionCommand =
+  | { command: "profile.company.read.urn"; args: { url: string } }
   | { command: "jobPosting.read"; args: { url: string } }
   | AgentCommand
   | AccountAboutCommand
@@ -191,6 +192,7 @@ export type CommandName = ExtensionCommand["command"];
 // Map each command name to its result type, so the dispatcher is typed
 // end-to-end (args in, correct result out).
 export interface CommandResultMap {
+  "profile.company.read.urn": { urn: string };
   "jobPosting.read": { sourceUrl: string; descriptionMarkdown: string };
   getSearchState: SearchState;
   listFilterOptions: FilterOption[];
