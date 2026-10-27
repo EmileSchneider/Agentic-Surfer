@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Oppenheimer Tooling",
     "version": "0.1.0",
-    "permissions": ["tabs", "scripting", "alarms", "storage", "sidePanel"],
+    "permissions": ["tabs", "scripting", "alarms", "storage", "sidePanel", "clipboardWrite"],
     "host_permissions": ["https://*/*", "http://localhost:3000/*"],
     "background": { "service_worker": "background.js", "type": "module" },
     "description": "accessibility tooling.",
