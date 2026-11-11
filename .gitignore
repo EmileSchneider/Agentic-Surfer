@@ -1,0 +1,21 @@
+# Local credentials and settings
+.env
+.env.*
+!.env.example
+.aws/
+.codex/
+.agents/
+
+# Build output and dependencies
+dist/
+node_modules/
+
+# Private exports and saved pages
+examples/
+construction-business-development.md
+private/
+exports/
+
+# Editor and operating system files
+.DS_Store
+*.swp

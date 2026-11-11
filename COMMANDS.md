@@ -1,6 +1,6 @@
 # Extension commands
 
-This file lists all 61 command names in `COMMAND_ROUTES` in [background.ts](background.ts). Arguments are the contents of `args`. Return types describe the successful `result`, after the command completes. `?` marks an optional field. Send `{}` when no arguments are needed.
+This file lists command names in `COMMAND_ROUTES` in [background.ts](background.ts). Arguments are the contents of `args`. Return types describe the successful `result`, after the command completes. `?` marks an optional field. Send `{}` when no arguments are needed.
 
 The router and handlers are the source for this list. `ExtensionCommand` and `CommandResultMap` in `types.ts` are incomplete.
 
@@ -12,6 +12,31 @@ The router and handlers are the source for this list. `ExtensionCommand` and `Co
 { id: string; ok: true; result: /* type below */ }
 // Failure
 { id: string; ok: false; error: { code: ToolErrorCode; message: string } }
+```
+
+## General LinkedIn post search
+
+These commands use a persistent search tab in the agent window, separate from Sales Navigator.
+
+| Command | Arguments | Result |
+| --- | --- | --- |
+| `linkedinSearch.searchPosts` | `{ keywords: string }` | `{ keywords, resultType: "posts", url }` |
+| `linkedinSearch.readPosts` | `{ limit?: number }` | `{ keywords, resultType: "posts", url, count, posts }` |
+
+Call `searchPosts` first. It opens `/search/results/all/` with the supplied keywords, selects the Posts filter, and waits for post cards or an empty-results message. Keywords must be nonempty after trimming.
+
+`readPosts` scrolls through results and waits for new cards until it reaches `limit`, three consecutive scrolls produce no new cards, or its bounded scan budget is reached. It retains posts already read when LinkedIn removes or recycles their DOM nodes. For cards without a visible permalink, it opens the post menu and captures the URL from “Copy link to post”. This does not require reading the system clipboard. `limit` defaults to 20 and must be an integer from 1 to 100. `count` is the number returned, not the total search result count. Duplicate post URNs are removed. Activity, ugcPost, and share URNs are accepted, as are activity IDs in LinkedIn `/posts/` links. If a post link cannot be resolved, the command reports an error for that post instead of silently skipping it. Search readiness depends on the presence of cards, not on their URNs. An explicit empty-results message returns an empty array; unrecognized results time out rather than reporting a false empty result.
+
+Large reads can take longer because missing post URLs are resolved one at a time. When using the HTTP RPC endpoint, set the existing top-level `timeoutMs` field above its 60-second default if needed.
+
+Each post has `post_urn`, `url`, `text`, `authorName`, `authorProfileUrl`, `authorHeadline`, `ageText`, `isRepost`, `reactionCount`, and `commentCount`. Unavailable text and counts are `null`. Author headlines support both the SDUI author block and the older layout. Counts shown as K or M are approximate. Text contains only what is present in the page DOM, with line breaks preserved. A repost's URN identifies the linked activity, not necessarily the original post.
+
+```json
+{ "command": "linkedinSearch.searchPosts", "args": { "keywords": "construction cash flow" } }
+```
+
+```json
+{ "command": "linkedinSearch.readPosts", "args": { "limit": 20 } }
 ```
 
 ## Lead search
@@ -102,6 +127,7 @@ Argument and result notes:
 - `memberId` identifies a LinkedIn person. For `open` and `read`, it must be nonempty and must not contain `/`, `?`, or `#`. For `connect`, only letters, combining marks, numbers, `_`, and `-` are accepted.
 - A connection note must be nonempty when supplied and must have no more than 300 characters.
 - `profile.person.open` leaves the tab open. `read` and `connect` close their temporary tab after completion. The returned connection `tabId` thus identifies a tab that has been closed.
+- `profile.person.read` includes `activityPosts` from the loaded Activity carousel, or `[]` when no post cards are present. Each `post_urn` comes from the linked activity URL; for reposts, it is not necessarily the original post URN. It does not open posts or load the full activity history.
 - `jobPosting.read` validates and normalizes its URL with `jobPostingUrl` in [job-posting/extractor.ts](job-posting/extractor.ts).
 - `invitations.withdrawOld` has no age argument. See [invitations/tools.ts](invitations/tools.ts) for its fixed age rule.
 
@@ -353,6 +379,15 @@ interface PersonExperience {
   description: string | null;
 }
 
+interface PersonActivityPost {
+  post_urn: string;
+  url: string;
+  text: string | null;
+  authorName: string | null;
+  ageText: string | null;
+  isRepost: boolean;
+}
+
 interface PersonProfile {
   memberId: string;
   name: string | null;
@@ -360,6 +395,7 @@ interface PersonProfile {
   location: string | null;
   about: string | null;
   experience: PersonExperience[];
+  activityPosts: PersonActivityPost[];
   url: string;
   finalUrl: string;
   hydration: {

@@ -1,6 +1,7 @@
 import { isVisible, realClick, sleep, waitFor } from "../../linkedin/dom.ts";
 import { ToolError } from "../../types.ts";
 import { clickConnectButton } from "./connect.ts";
+import { readPostCards } from "../../linkedin-search/posts.ts";
 
 const SECTION_LABELS = [
   "About",
@@ -26,6 +27,15 @@ export interface PersonExperience {
   description: string | null;
 }
 
+export interface PersonActivityPost {
+  post_urn: string;
+  url: string;
+  text: string | null;
+  authorName: string | null;
+  ageText: string | null;
+  isRepost: boolean;
+}
+
 export interface PersonProfile {
   memberId: string;
   name: string | null;
@@ -33,6 +43,7 @@ export interface PersonProfile {
   location: string | null;
   about: string | null;
   experience: PersonExperience[];
+  activityPosts: PersonActivityPost[];
   url: string;
   finalUrl: string;
   hydration: {
@@ -448,6 +459,14 @@ async function readExperience(): Promise<PersonExperience[]> {
     .flatMap(readExperienceFromItem);
 }
 
+function readActivityPosts(): PersonActivityPost[] {
+  const section = findSection("Activity");
+  if (!section) return [];
+  return readPostCards(section).map(({ post_urn, url, text, authorName, ageText, isRepost }) => ({
+    post_urn, url, text, authorName, ageText, isRepost,
+  }));
+}
+
 async function readPersonProfile(memberId: string): Promise<PersonProfile> {
   const hydration = await hydratePersonProfile();
   const about = await readAbout();
@@ -458,6 +477,7 @@ async function readPersonProfile(memberId: string): Promise<PersonProfile> {
     ...readTopCard(),
     about,
     experience,
+    activityPosts: readActivityPosts(),
     url: `https://www.linkedin.com/in/${encodeURIComponent(memberId)}`,
     finalUrl: location.href,
     hydration,

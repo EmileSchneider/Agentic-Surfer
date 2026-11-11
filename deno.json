@@ -1,10 +1,8 @@
 {
     "imports": {
-        "@genql/cli": "npm:@genql/cli@^6.3.4",
         "@modelcontextprotocol/server": "npm:@modelcontextprotocol/server@^2.0.0",
 	"@types/chrome": "npm:@types/chrome@^0.0.270",
         "surrealdb": "npm:surrealdb@^2.0.8",
-        "twenty-client-sdk": "npm:twenty-client-sdk@^2.45.0",
         "zod": "npm:zod@^4.6.7"
     },
     "tasks": {

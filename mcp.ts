@@ -2,6 +2,10 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 
+const agentToken = Deno.env.get("AGENT_TOKEN");
+if (!agentToken?.trim()) throw new Error("Set AGENT_TOKEN before starting the server.");
+
+
 
 
 const AuthSchema = z.object({
@@ -67,7 +71,7 @@ Deno.serve(
 	}
 	const auth_message = result.data;
 	
-	if (auth_message.clientId !== "default" || auth_message.token !== "REMOVED_LOCAL_TOKEN") {
+	if (auth_message.clientId !== "default" || auth_message.token !== agentToken) {
 	  socket.close(1008, "Invalid authentication");
 	  return;
 	}

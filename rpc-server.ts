@@ -1,7 +1,11 @@
 import * as z from "zod/v4";
 
+const agentToken = Deno.env.get("AGENT_TOKEN");
+if (!agentToken?.trim()) throw new Error("Set AGENT_TOKEN before starting the server.");
+
+
 const AuthSchema = z.object({
-  token: z.literal("REMOVED_LOCAL_TOKEN"),
+  token: z.literal(agentToken),
   clientId: z.literal("default"),
 });
 

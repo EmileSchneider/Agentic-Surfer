@@ -1,6 +1,7 @@
 import type { LeadResult } from "./linkedin/results.ts";
 import type { AccountProfileSnapshot } from "./lsn-profile/account-profile.ts";
 import type { AccountIqSnapshot } from "./lsn-profile/account-iq.ts";
+import type { LinkedInSearchState, LinkedInSearchResults } from "./linkedin-search/tools.ts";
 
 export type Brand<T, B extends string> = T & { readonly __brand: B };
 export type Result<T, E = Error> = Ok<T> | Err<E>;
@@ -178,6 +179,8 @@ export interface WithdrawOldInvitationsResult {
 }
 
 export type ExtensionCommand =
+  | { command: "linkedinSearch.searchPosts"; args: { keywords: string } }
+  | { command: "linkedinSearch.readPosts"; args: { limit?: number } }
   | { command: "profile.company.read.urn"; args: { url: string } }
   | { command: "jobPosting.read"; args: { url: string } }
   | AgentCommand
@@ -192,6 +195,8 @@ export type CommandName = ExtensionCommand["command"];
 // Map each command name to its result type, so the dispatcher is typed
 // end-to-end (args in, correct result out).
 export interface CommandResultMap {
+  "linkedinSearch.searchPosts": LinkedInSearchState;
+  "linkedinSearch.readPosts": LinkedInSearchResults;
   "profile.company.read.urn": { urn: string };
   "jobPosting.read": { sourceUrl: string; descriptionMarkdown: string };
   getSearchState: SearchState;

@@ -21,6 +21,7 @@
 
 import { toToolError } from "./tools.ts";
 import { jobPostingUrl } from "./job-posting/extractor.ts";
+import { copyPostLink } from "./linkedin-search/post-link.ts";
 import {
   type AgentCommand,
   type AuthMessage,
@@ -33,7 +34,6 @@ import {
 } from "./types.ts";
 
 const WS_URL = "ws://localhost:8001/ws/agent";
-const AUTH_TOKEN = "REMOVED_LOCAL_TOKEN";
 const CLIENT_ID = "default";
 
 const WATCHDOG_ALARM = "ws-watchdog";
@@ -136,12 +136,19 @@ function ensureConnected(): void {
 
 function connect(): void {
   console.log("[ws] connecting...");
-  socket = new WebSocket(WS_URL);
+  const openedSocket = socket = new WebSocket(WS_URL);
 
-  socket.onopen = () => {
+  socket.onopen = async () => {
+    const { agentToken } = await chrome.storage.local.get("agentToken");
+    if (typeof agentToken !== "string" || !agentToken.trim()) {
+      console.error("Set agentToken in extension storage before connecting.");
+      openedSocket?.close();
+      return;
+    }
+    if (socket !== openedSocket || openedSocket?.readyState !== WebSocket.OPEN) return;
     reconnectDelay = 1_000;
     const auth: AuthMessage = {
-      token: AUTH_TOKEN,
+      token: agentToken,
       clientId: CLIENT_ID,
     };
     socket?.send(JSON.stringify(auth));
@@ -424,6 +431,17 @@ const accountSearchRoute = {
   invokeType: "INVOKE_ACCOUNT_SEARCH_TOOL",
 } satisfies ContentRoute;
 
+const linkedinSearchRoute = {
+  kind: "content",
+  tabKey: "linkedinSearchTabId",
+  homeUrl: "https://www.linkedin.com/search/results/all/",
+  matchUrl: "https://www.linkedin.com/search/results/*",
+  urlPrefix: "https://www.linkedin.com/search/results/",
+  scriptFile: "linkedin-search-content.js",
+  pingType: "PING_LINKEDIN_SEARCH",
+  invokeType: "INVOKE_LINKEDIN_SEARCH_TOOL",
+} satisfies ContentRoute;
+
 const invitationsRoute = {
   kind: "content",
   tabKey: "invitationManagerTabId",
@@ -451,6 +469,8 @@ const accountProfileRoute = {
 } satisfies BackgroundJobRoute;
 
 const COMMAND_ROUTES = {
+  "linkedinSearch.searchPosts": linkedinSearchRoute,
+  "linkedinSearch.readPosts": linkedinSearchRoute,
   // old names:
   "getSearchState": leadSearchRoute,
   "listFilterOptions": leadSearchRoute,
@@ -810,10 +830,61 @@ async function runBackgroundJob(
   }
 }
 
+let linkedinSearchQueue: Promise<unknown> = Promise.resolve();
+
+async function runLinkedInSearch(command: string, args: unknown): Promise<unknown> {
+  const input = args as { keywords?: unknown; limit?: unknown } | null;
+  const keywords = typeof input?.keywords === "string" ? input.keywords.trim() : "";
+  if (command === "linkedinSearch.searchPosts" && !keywords) {
+    throw new ToolError("BAD_ARGS", "keywords must be a nonempty string");
+  }
+  if (command === "linkedinSearch.readPosts" && input?.limit !== undefined &&
+    (typeof input.limit !== "number" || !Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100)) {
+    throw new ToolError("BAD_ARGS", "limit must be an integer from 1 to 100");
+  }
+  const route = linkedinSearchRoute;
+  const tabId = await ensureContextTab(route);
+  await chrome.tabs.update(tabId, { active: true });
+  if (command === "linkedinSearch.searchPosts") {
+    const url = new URL(route.homeUrl);
+    url.searchParams.set("keywords", keywords);
+    url.searchParams.set("origin", "GLOBAL_SEARCH_HEADER");
+    await chrome.tabs.update(tabId, { url: url.href });
+    await waitForTabSettled(tabId);
+    // The background owns navigation, so document replacement cannot lose
+    // the original command response.
+    const [selection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: async () => {
+        const deadline = Date.now() + 10_000;
+        while (Date.now() < deadline) {
+          const input = document.querySelector<HTMLInputElement>('input[aria-label="Filter by Posts"]');
+          if (input && !input.disabled) {
+            if (!input.checked) input.click();
+            return true;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+        return false;
+      },
+    });
+    if (!selection?.result) throw new ToolError("NOT_FOUND", "Posts search filter not found");
+    await waitForTabSettled(tabId);
+  }
+  await ensureContentScript(tabId, route.scriptFile, route.pingType);
+  return sendContentCommand(tabId, command,
+    command === "linkedinSearch.searchPosts" ? { keywords } : args, route.invokeType);
+}
+
 async function dispatchCommand(
   command: string,
   args: unknown,
 ): Promise<unknown> {
+  if (command === "linkedinSearch.searchPosts" || command === "linkedinSearch.readPosts") {
+    const result = linkedinSearchQueue.then(() => runLinkedInSearch(command, args));
+    linkedinSearchQueue = result.catch(() => {});
+    return result;
+  }
   const route = COMMAND_ROUTES[command as keyof typeof COMMAND_ROUTES];
 
   if (!route) {
@@ -1065,7 +1136,44 @@ async function scrapeWithRetry(
   }
 }
 
+// LinkedIn search cards copy https://lnkd.in/p/<id>. Follow it to the
+// linkedin.com post URL; an interstitial page still names it in the HTML.
+async function resolveShortPostLink(link: string): Promise<string> {
+  if (new URL(link).hostname !== "lnkd.in") return link;
+  const res = await fetch(link, { redirect: "follow", credentials: "omit" });
+  const isPost = (u: URL) => ["www.linkedin.com", "linkedin.com"].includes(u.hostname) &&
+    /^\/(feed\/update|posts)\//.test(u.pathname);
+  const final = new URL(res.url);
+  if (isPost(final)) return final.href;
+  const html = await res.text();
+  const found = html.match(/https:\/\/(?:www\.)?linkedin\.com\/(?:feed\/update|posts)\/[^"'<>\s]+/)?.[0];
+  if (found) return found.replace(/&amp;/g, "&");
+  throw new Error(`Short post link did not resolve to a LinkedIn post: ${link} -> ${res.url}`);
+}
+
 // ============================================================== legacy bridge
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type !== "READ_LINKEDIN_POST_LINK") return;
+  if (sender.tab?.id == null || sender.frameId !== 0 ||
+    !sender.url?.startsWith("https://www.linkedin.com/search/results/") ||
+    typeof msg.cardKey !== "string" || !msg.cardKey.startsWith("update-card")) {
+    sendResponse({ ok: false, error: "Invalid post-link request" });
+    return;
+  }
+  void chrome.scripting.executeScript({
+    target: { tabId: sender.tab.id },
+    world: "MAIN",
+    func: copyPostLink,
+    args: [msg.cardKey],
+  }).then(([result]) => {
+    if (typeof result?.result?.url !== "string") {
+      throw new Error(result?.result?.error ?? "No post link returned from the page");
+    }
+    return resolveShortPostLink(result.result.url);
+  }).then((url) => sendResponse({ ok: true, url })).catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+  return true;
+});
+
 // Kept the dev-console harness (content-side checkLinkedinProfile) still works.
 // The agent path no longer goes through here
 
@@ -1114,6 +1222,7 @@ async function reinjectExistingTabs(): Promise<void> {
 
   await inject(leadSearchRoute.matchUrl, leadSearchRoute.scriptFile);
   await inject(accountSearchRoute.matchUrl, accountSearchRoute.scriptFile);
+  await inject(linkedinSearchRoute.matchUrl, linkedinSearchRoute.scriptFile);
   await inject(
     "https://www.linkedin.com/sales/company/*",
     "lsn-profile-content.js",
